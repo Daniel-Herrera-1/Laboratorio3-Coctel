@@ -111,7 +111,7 @@ def calcular_snr(signal, noise):
 
 Se generan gráficos para analizar las señales en el dominio del tiempo y la frecuencia.
 
-##Forma de onda
+### Forma de onda
 
 Cada señal capturada por los micrófonos se representa como una función de amplitud en el tiempo:
 
@@ -123,3 +123,21 @@ plt.ylabel("Amplitud")
 ```
 
 ![image](https://github.com/user-attachments/assets/9f27e548-f990-4f9a-a4f5-a0e0e880977a)
+
+### Interpretación: Este gráfico muestra cómo varía la amplitud de la señal en el tiempo. Permite visualizar ruidos, patrones y características de la voz capturada.
+
+## Espectrograma
+
+El espectrograma muestra la distribución de la energía de la señal en función del tiempo y la frecuencia:
+
+```python
+f, t, dep = signal.spectrogram(data, sr)
+plt.imshow(10 * np.log10(dep + 1e-10), aspect='auto', origin='lower',
+           extent=[t.min(), t.max(), f.min(), f.max()])
+plt.title(f"Espectrograma - {key}")
+plt.xlabel("Tiempo (s)")
+plt.ylabel("Frecuencia (Hz)")
+```
+
+Interpretación: Un espectrograma permite ver qué frecuencias están presentes en la señal y cómo cambian con el tiempo. Es útil para detectar ruido y componentes no deseados.
+
