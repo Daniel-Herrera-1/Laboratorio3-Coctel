@@ -130,14 +130,75 @@ plt.ylabel("Amplitud")
 
 El espectrograma muestra la distribución de la energía de la señal en función del tiempo y la frecuencia:
 
+este fragmento de código primero genera una representación visual (espectrograma) de la señal de audio, lo que ayuda a analizar la distribución temporal y frecuencial de la energía, y luego prepara las señales de entrada asegurándose de que tengan la misma longitud, facilitando así el procesamiento conjunto en etapas posteriores.
+
 ```python
-f, t, dep = signal.spectrogram(data, sr)
-plt.imshow(10 * np.log10(dep + 1e-10), aspect='auto', origin='lower',
-           extent=[t.min(), t.max(), f.min(), f.max()])
-plt.title(f"Espectrograma - {key}")
-plt.xlabel("Tiempo (s)")
-plt.ylabel("Frecuencia (Hz)")
+# Calcular y graficar espectrograma
+    f, t, dep = signal.spectrogram(data, sr)
+    plt.subplot(len(audio_data), 2, i * 2 + 2)
+    eps = 1e-10
+    plt.imshow(10 * np.log10(dep + eps), aspect='auto', origin='lower',
+               extent=[t.min(), t.max(), f.min(), f.max()])
+    plt.title(f"Espectrograma - {key}")
+    plt.xlabel("Tiempo (s)")
+    plt.ylabel("Frecuencia (Hz)")
+
+plt.tight_layout()
+plt.show()
+
+# Alinear señales para asegurar longitud mínima en común
+min_length = min(len(data_1), len(data_2))
+signals_matrix = np.vstack([data_1[:min_length], data_2[:min_length]]).T
 ```
+![image](https://github.com/user-attachments/assets/7cc203b6-88d9-4964-86ab-5e8d1ecd4209)
+
 
 Interpretación: Un espectrograma permite ver qué frecuencias están presentes en la señal y cómo cambian con el tiempo. Es útil para detectar ruido y componentes no deseados.
+
+## 5. Procesamiento de Señales
+
+- Extraer las componentes principales de la señal mediante SVD
+- Reducir el ruido de estas señales utilizando un filtro de Wiener y luego visualizar el resultado
+
+```python
+U, S, Vt = svd(signals_matrix, full_matrices=False)
+senales_beamform = U[:, :2] @ np.diag(S[:2])
+```
+El código utiliza la Descomposición en Valores Singulares (SVD) para analizar la matriz de señales (ya alineadas en longitud) obtenida previamente. Con SVD, la matriz signals_matrix se factoriza en tres componentes:
+
+- U: Matriz de vectores ortonormales en el espacio de las muestras, que captura la forma en que se distribuye la energía en el tiempo.
+- S: Vector de valores singulares, donde cada valor indica la cantidad de energía (o importancia) de cada componente.
+- Vt: Matriz que contiene los coeficientes de combinación para reconstruir las señales originales a partir de los componentes.
+
+## Filtrado con el Filtro de Wiener para Reducción de Ruido
+
+Una vez obtenida la señal beamformed, se procede a reducir aún más el ruido utilizando el filtro de Wiener
+```python
+senales_sinruido = np.apply_along_axis(lambda x: wiener(x + 1e-10, mysize=29), 0, senales_beamform)
+```
+
+Aquí se realiza lo siguiente:
+
+- Se aplica, para cada columna (cada señal) de la matriz senales_beamform, una función lambda que suma un pequeño valor (1e-10) a la señal para evitar problemas numéricos (como dividir por cero) y luego aplica el filtro de Wiener.
+- El parámetro mysize=29 determina el tamaño de la ventana que utiliza el filtro para estimar la media y la varianza local, adaptándose a las características de la señal en cada segmento.
+
+El filtro de Wiener es un método adaptativo que reduce el ruido estimando la señal “limpia” en base a las variaciones locales de la misma. El resultado es senales_sinruido, una matriz en la que cada columna es una señal con una reducción significativa del ruido.
+
+## Visualización de las Señales Filtradas
+
+Finalmente, el código genera gráficos para visualizar las señales después del filtrado:
+
+```python
+plt.figure(figsize=(12, 6))
+for i in range(2):
+    plt.subplot(2, 1, i + 1)
+    plt.plot(senales_sinruido[:, i])
+    plt.title(f"Señal filtrada con Wiener - Microfono {i + 1}")
+    plt.xlabel("Muestras")
+    plt.ylabel("Amplitud")
+
+plt.tight_layout()
+plt.show()
+```
+![image](https://github.com/user-attachments/assets/4eb66bf3-acc3-4667-b67a-72addc38b8bf)
 
