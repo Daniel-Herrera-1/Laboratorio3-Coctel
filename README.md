@@ -186,7 +186,7 @@ El filtro de Wiener es un método adaptativo que reduce el ruido estimando la se
 
 ## Filtrado con aplicación del PCA y el ICA
 Para estas tecnicas toca tener en cuenta lo siguiente:  si alguna columna de la matriz senales_sinruido tiene varianza cero indica que todos los valores en esa columna son iguales, lo que puede ser problemático para técnicas como PCA o ICA, ya que no aportan información útil.
-Si se detecta varianza cero, se imprime un mensaje de advertencia y se añade un pequeño ruido gaussiano  a las señales.
+Si se detecta varianza cero, se añade un pequeño ruido gaussiano  a las señales.
 
 Manejo de valores NaN o Inf:
 La función np.nan_to_num convierte cualquier valor NaN (Not a Number) o Inf (Infinito) en un número finito (generalmente 0). Esto es importante porque valores NaN o Inf pueden causar errores en cálculos posteriores.
