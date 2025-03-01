@@ -386,7 +386,7 @@ for key, path in output_files.items():
     print(f" {key}: {path}")
 
 #SNR después del procesamiento:
-$ Mic 1: -36.46 dB
+#Mic 1: -36.46 dB
  #Mic 2: -36.46 dB
 #Voces Separadas Generadas:
  #Voz Separada Mejorada 1: voz_mejorada_1.wav
