@@ -1,5 +1,9 @@
 # Laboratorio3-Coctel
 
+## NOTA: El SNR final obtenido tras el procesamiento indica la relación entre la señal útil y el ruido residual. Un SNR más bajo de lo esperado podría deberse a factores como:
+
+- Ubicación de los micrófonos: Si los micrófonos estaban demasiado cerca entre sí, pudieron captar señales muy similares, lo que dificulta la separación efectiva de fuentes.
+- Condiciones del entorno: Si la sala no estaba lo suficientemente en silencio, el ruido ambiental pudo haberse mezclado con la señal principal, afectando la calidad del resultado.
 
 # Análisis y Separación de Señales de Voz en un Entorno Ruidoso
 
@@ -241,3 +245,159 @@ plt.show()
 ```
 ![image](https://github.com/user-attachments/assets/4eb66bf3-acc3-4667-b67a-72addc38b8bf)
 
+Interpretacion: el proceso de mejorar las señales de audio capturadas mediante dos pasos principales: extraer las características más relevantes de las señales (reduciendo redundancias y ruido) y aplicar un filtrado que suavice aún más la señal. En resumen, lo que hace este bloque es:
+
+
+## Manejo de Valores Atipicos
+
+```python
+# Verificar si alguna columna de 'senales_sinruido' tiene varianza cero.
+if np.any(np.var(senales_sinruido, axis=0) == 0):
+    print("¡Atención! Algunas columnas tienen varianza cero. Añadiendo ruido...")
+    # Si se detecta que alguna señal es constante (varianza cero), se añade un pequeño ruido gaussiano
+    # (media = 0, desviación = 1e-6) a toda la matriz para evitar problemas en análisis posteriores.
+    senales_sinruido += np.random.normal(0, 1e-6, senales_sinruido.shape)
+
+# Reemplazar cualquier valor NaN (no numérico) o Inf (infinito) por 0, garantizando datos válidos.
+senales_sinruido = np.nan_to_num(senales_sinruido)
+
+# Aplicar PCA para reducir la dimensionalidad y estabilizar las señales.
+# Se configuran 2 componentes principales (una para cada micrófono, en este caso) sin aplicar 'whitening'.
+pca = PCA(n_components=2, whiten=False, random_state=42)
+pca_signals = pca.fit_transform(senales_sinruido)
+
+# Verificar que la transformación con PCA no haya generado valores anómalos:
+print("¿NaN en pca_signals?", np.isnan(pca_signals).any())
+print("¿Inf en pca_signals?", np.isinf(pca_signals).any())
+print("Varianzas de pca_signals:", np.var(pca_signals, axis=0))
+
+#¿NaN en pca_signals? False
+#¿Inf en pca_signals? False
+#Varianzas de pca_signals: [5928396.2545232  4285693.79366472]
+```
+
+###  *1.Corrección de Valores Problemáticos:*
+
+- Se calcula la varianza de cada columna en la matriz **senales_sinruido.**
+
+- Si alguna columna tiene varianza cero, significa que esa señal es constante (no varía), lo que puede generar errores en pasos posteriores.
+
+- En caso de detectar una varianza cero, se imprime una advertencia y se añade un ruido muy pequeño (con media 0 y desviación 1e-6) a toda la matriz, ayudando a "despertar" la variación en esa señal.
+
+- Luego, se usa **np.nan_to_num** para reemplazar valores no numéricos (NaN) o infinitos por cero, asegurando que los datos sean adecuados para el procesamiento.
+
+  
+## 2. Aplicación de PCA (Análisis de Componentes Principales):
+
+- Se instancia un objeto PCA configurado para extraer 2 componentes principales. Esto ayuda a reducir la dimensionalidad de los datos y a estabilizar las señales, enfocándose en las variaciones más importantes.
+
+- La transformación se aplica a senales_sinruido con pca.fit_transform(), generando pca_signals que contendrá las dos componentes principales de la señal.
+  
+## 3. Verificación de la Transformación:
+
+- Se realizan comprobaciones para confirmar que pca_signals no contenga valores NaN o infinitos.
+- Se imprimen las varianzas de las dos componentes principales para asegurar que la transformación captura la variabilidad esencial de las señales.
+
+## Aplicar ICA
+
+separar las fuentes mezcladas y luego visualiza las señales resultantes:
+
+```pyhon
+# Aplicar ICA para separación de fuentes
+ica = FastICA(n_components=2, max_iter=3000, tol=0.0001, random_state=42)
+enhanced_signals = ica.fit_transform(pca_signals)
+```
+- FastICA: Se configura para extraer 2 componentes (correspondientes a 2 fuentes).
+- fit_transform: Se aplica a las señales estabilizadas por PCA (pca_signals) para obtener las señales separadas.
+
+```python
+# Visualizar señales separadas
+plt.figure(figsize=(12, 6))
+for i in range(2):
+    plt.subplot(2, 1, i + 1)
+    plt.plot(enhanced_signals[:, i])
+    plt.title(f"Señal Separada por ICA - Microfono {i + 1}")
+    plt.xlabel("Tiempo")
+    plt.ylabel("Amplitud")
+
+plt.tight_layout()
+plt.show()
+```
+- Se crea una figura y se generan dos subgráficas (una por cada señal separada).
+- Cada gráfica muestra la evolución en el tiempo (eje X) de la amplitud (eje Y) de la señal separada.
+- Esto permite visualizar cómo ICA ha extraído las fuentes individuales de la mezcla original.
+
+![image](https://github.com/user-attachments/assets/e554de44-3ab9-4e85-a9c6-c3a7051044c1)
+
+
+## Normalizacion
+
+```python
+# Normalizar y guardar las señales separadas
+output_files = {}
+for i in range(2):
+    # Normalizar la señal para que sus valores queden en el rango [-1, 1]
+    señal_normalizada = enhanced_signals[:, i] / np.max(np.abs(enhanced_signals[:, i]))
+    
+    # Escalar la señal normalizada a valores enteros de 16 bits (rango: -32768 a 32767)
+    señal_escalada = (señal_normalizada * 32767).astype(np.int16)
+    
+    # Definir el nombre del archivo WAV de salida para la señal separada
+    output_file = f"voz_mejorada_{i + 1}.wav"
+    
+    # Guardar la señal escalada en un archivo WAV usando la frecuencia de muestreo original
+    wav.write(output_file, frecuenciamuestreo_1, señal_escalada)
+    
+    # Almacenar el nombre del archivo en un diccionario para referencia
+    output_files[f"Voz Separada Mejorada {i + 1}"] = output_file
+```
+- **Normalización:**
+Se divide cada señal (enhanced_signals[:, i]) por su valor máximo absoluto para que todos sus valores estén entre -1 y 1.
+
+- **Escalado a int16**:
+La señal normalizada se multiplica por 32767 (valor máximo en 16 bits) y se convierte a tipo entero (int16), adaptándola al formato de audio estándar.
+
+- **Guardado**:
+La señal procesada se guarda en un archivo WAV usando la frecuencia de muestreo original, y se registra su nombre en el diccionario output_files para referencia futura.
+
+
+## Calculo SNR Y GUARDADO
+
+
+```python
+# Calcular SNR después del procesamiento
+snr_despues = {}
+for i in range(2):
+    # Selecciona la señal separada para el micrófono i
+    señal_procesada = enhanced_signals[:, i]
+    # Usa el ruido original (recortado al tamaño de la señal) para el cálculo del SNR
+    ruido_procesado = data_ruido[:len(señal_procesada)]
+    # Calcula el SNR y lo guarda en el diccionario, etiquetado por el micrófono
+    snr_despues[f"Mic {i + 1}"] = calcular_snr(señal_procesada, ruido_procesado)
+
+# Mostrar SNR después del procesamiento
+print("\nSNR después del procesamiento:")
+for key, snr in snr_despues.items():
+    print(f" {key}: {snr:.2f} dB")
+
+# Mostrar los nombres de los archivos generados con las voces separadas
+print("Voces Separadas Generadas:")
+for key, path in output_files.items():
+    print(f" {key}: {path}")
+
+#SNR después del procesamiento:
+$ Mic 1: -36.46 dB
+ #Mic 2: -36.46 dB
+#Voces Separadas Generadas:
+ #Voz Separada Mejorada 1: voz_mejorada_1.wav
+ #Voz Separada Mejorada 2: voz_mejorada_2.wav
+```
+
+- **Cálculo del SNR:**
+Para cada señal separada (de cada micrófono), se calcula la Relación Señal-Ruido (SNR) usando la función calcular_snr. Se recorta el ruido (data_ruido) para que tenga la misma longitud que la señal procesada. Los valores se almacenan en el diccionario snr_despues.
+
+- **Mostrar SNR:**
+Se imprime el SNR de cada micrófono en decibelios, permitiendo evaluar la mejora en la calidad de la señal tras el procesamiento.
+
+- **Mostrar Archivos Generados:**
+Se listan los nombres de los archivos WAV que contienen las voces separadas, almacenados en output_files.
