@@ -184,6 +184,45 @@ Aquí se realiza lo siguiente:
 
 El filtro de Wiener es un método adaptativo que reduce el ruido estimando la señal “limpia” en base a las variaciones locales de la misma. El resultado es senales_sinruido, una matriz en la que cada columna es una señal con una reducción significativa del ruido.
 
+## Filtrado con aplicación del PCA y el ICA
+Para estas tecnicas toca tener en cuenta lo siguiente:  si alguna columna de la matriz senales_sinruido tiene varianza cero indica que todos los valores en esa columna son iguales, lo que puede ser problemático para técnicas como PCA o ICA, ya que no aportan información útil.
+Si se detecta varianza cero, se imprime un mensaje de advertencia y se añade un pequeño ruido gaussiano  a las señales.
+
+Manejo de valores NaN o Inf:
+La función np.nan_to_num convierte cualquier valor NaN (Not a Number) o Inf (Infinito) en un número finito (generalmente 0). Esto es importante porque valores NaN o Inf pueden causar errores en cálculos posteriores.
+
+* Primero se aplica PCA (Análisis de Componentes Principales) Reducir la dimensionalidad de las señales y eliminar correlaciones entre ellas.
+
+Parámetros:
+n_components=2: Se conservan solo 2 componentes principales
+whiten=False: No se normaliza la varianza de los componentes.
+random_state=42: Fija la semilla aleatoria para reproducibilidad.
+
+```python
+pca = PCA(n_components=2, whiten=False, random_state=42)
+pca_signals = pca.fit_transform(senales_sinruido)
+```
+
+pca.fit_transform(senales_sinruido): Ajusta el modelo PCA a las señales y las transforma en un espacio de menor dimensionalidad.
+Las señales resultantes (pca_signals) son una versión estabilizada y reducida de las señales originales.
+
+* Segundo por ICA (Análisis de Componentes Independientes):Separar las fuentes de audio independientes que están mezcladas en las señales.
+
+Parámetros:
+n_components=2: 2 componentes independientes (una por cada fuente de audio).
+max_iter=4000: se necesitan varias iteraciones para converger.
+tol=0.0001: Tolerancia para detener el algoritmo si la convergencia es suficiente.
+random_state=42: semilla aleatoria.
+
+```python
+ica = FastICA(n_components=2, max_iter=4000, tol=0.0001, random_state=42)
+señales_mejoradas = ica.fit_transform(pca_signals)
+```
+
+ica.fit_transform(pca_signals): Ajusta el modelo ICA a las señales PCA y las transforma en componentes independientes.
+Las señales resultantes (señales_mejoradas) son las fuentes de audio separadas.
+
+
 ## Visualización de las Señales Filtradas
 
 Finalmente, el código genera gráficos para visualizar las señales después del filtrado:
